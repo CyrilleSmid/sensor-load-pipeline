@@ -2,6 +2,7 @@ import simpy
 import numpy as np
 import pandas as pd
 import json
+import logging as log
 import paho.mqtt.client as mqtt
 import random
 
@@ -18,20 +19,29 @@ MQTT_TOPIC = 'sensors/electricity'  # Topic to publish data to
 
 def device(env, device_id, mqtt_client, data_source):
     sensor_labels = data_source.columns[device_id].split('_')
+
     sensor_label_key_value = f'floor:"{sensor_labels[0][-1]}", zone:"{sensor_labels[1][-1]}", sensor:"{sensor_labels[2]}"'
+    
     cur_time_index = 0
     while True:
         data = data_source.iloc[cur_time_index, device_id]
         cur_time = data_source.index[cur_time_index]
+
+        prometheus_data = fetch_device_data(device_id, client_id, sensor_label_key_value, data_source, cur_time_index)
         
-        send_data_to_mqtt(mqtt_client, cur_time, device_id, data, sensor_label_key_value)
+        log.info(f"Published: {prometheus_data}")
+        mqtt_client.publish(MQTT_TOPIC, prometheus_data)
+        
         yield env.timeout(DATA_INTERVAL)
         cur_time_index += 1
 
-def send_data_to_mqtt(mqtt_client, time, device_id, data, sensor_label_key_value): 
-    prometheus_data = f'electricity_load{{device_id="{device_id}", client_id="{client_id}", {sensor_label_key_value}}} {data} {time.timestamp()}'
-    print(prometheus_data)
-    mqtt_client.publish(MQTT_TOPIC, prometheus_data)
+
+def fetch_device_data(device_id, client_id, sensor_label_key_value, data_source, cur_time_index):
+        data = data_source.iloc[cur_time_index, device_id]
+        cur_time = data_source.index[cur_time_index]
+        
+        prometheus_data = f'electricity_load{{device_id="{device_id}", client_id="{client_id}", {sensor_label_key_value}}} {data} {cur_time.timestamp()}'
+        return prometheus_data
 
 def simulation(env):
     mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1)  # MQTT client
