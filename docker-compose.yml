@@ -2,6 +2,8 @@ version: '3.7'
 
 volumes:
   prometheus-data: {}
+  grafana-data: {}
+  influxdbv2: {}
 
 services:
   # sensor_simulator:
@@ -10,25 +12,60 @@ services:
 
   mqtt_broker:
     image: hivemq/hivemq4
+    container_name: mqtt_broker
     ports:
       - 1883:1883
       - 8000:8000
       - 8080:8080
       - 9399:9399
+    restart: unless-stopped
     volumes:
       - ./mqtt_broker/config/config.xml:/opt/hivemq/conf/config.xml
       - ./mqtt_broker/extensions/hivemq-mqtt-message-log-extension:/opt/hivemq/extensions/hivemq-mqtt-message-log-extension
       - ./mqtt_broker/extensions/hivemq-prometheus-extension:/opt/hivemq/extensions/hivemq-prometheus-extension
+  
+  influxdb:
+    image: influxdb:2.6-alpine
+    container_name: influxdb
+    env_file:
+      - ./influxdb/influxv2.env
+    volumes:
+      # Mount for influxdb data directory and configuration
+      - influxdbv2:/var/lib/influxdb2:rw
+    ports:
+      - "8086:8086"
+
+  telegraf:
+    image: telegraf:1.25-alpine
+    container_name: telegraf
+    depends_on:
+      - influxdb
+      - mqtt_broker
+    restart: unless-stopped
+    volumes:
+      # Mount for telegraf config
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    env_file:
+      - ./influxdb/influxv2.env
 
   prometheus:
     image: prom/prometheus
+    container_name: prometheus
+    ports:
+      - 9090:9090  # Prometheus UI port
+    restart: unless-stopped
     volumes:
       - ./mqtt_broker/extensions/hivemq-prometheus-extension/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus-data:/prometheus
-    ports:
-      - 9090:9090  # Prometheus UI port
+    command:
+      - '--web.enable-lifecycle'
+      - '--config.file=/etc/prometheus/prometheus.yml'
 
-  # grafana:
-  #   image: grafana/grafana
-  #   ports:
-  #     - 3000:3000  # Grafana UI port
+  grafana:
+      image: grafana/grafana:latest
+      container_name: grafana
+      ports:
+        - '3000:3000'
+      restart: unless-stopped
+      volumes:
+        - grafana-data:/var/lib/grafana
