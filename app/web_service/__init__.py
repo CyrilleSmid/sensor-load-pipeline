@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager
 
-app = Flask(__name__,template_folder='./frontend/templates',static_folder='./frontend/static')
+app = Flask(__name__,template_folder='./frontend/templates', static_folder='./frontend/static')
 app.config['SECRET_KEY'] = '1c47a3803abcb25f4b87b078afcf09f6'
 app.config['SQLALCHEMY_DATABASE_URI'] = r"sqlite:///../web_service/databases/sqlite.db"
 

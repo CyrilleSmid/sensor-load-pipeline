@@ -5,7 +5,7 @@
         <img class="rounded-circle account-img" src="{{ url_for('static', filename='thumbnails/profile-user.png') }}">
         <div class="media-body">
           <h2 class="account-heading">{{ current_user.email }}</h2>
-          <p class="text-secondary">{{ current_user.id }}</p>
+          <p class="text-secondary">User Id: {{ current_user.id }}</p>
         </div>
       </div>
         <form method="POST" action="" enctype="multipart/form-data">
