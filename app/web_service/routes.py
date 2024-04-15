@@ -4,6 +4,7 @@ from web_service.forms import RegistrationFormUser, LoginForm, UpdateAccountForm
 from flask_login import login_user, current_user, logout_user, login_required
 from web_service.models import User
 from datetime import datetime
+import docker
 import secrets
 import os
 
@@ -71,4 +72,8 @@ def account():
         form.email.data = current_user.email
     return render_template('account.html', title='Account', form=form)
 
+@app.route("/dashboard", methods=['GET'])
+@login_required
+def dashboard():
+    return render_template('dashboard.html', title='Dashboard')
 

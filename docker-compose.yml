@@ -10,6 +10,34 @@ services:
   #   build: ./sensor_simulator
     # Add any necessary configuration
 
+  flask_app:
+    build:
+      context: ./app  # Specify the build context to be the app directory
+      dockerfile: Dockerfile  # Specify the Dockerfile to use
+    container_name: flask_app
+    depends_on:
+      - sensor_simulation
+    ports:
+      - 5000:5000  # Expose Flask app's port
+    restart: unless-stopped
+    volumes:
+      - ./app:/usr/src/app  # Mount the current directory as a volume in the container
+    environment:
+      - FLASK_APP=run.py  # Set the Flask app entry point
+      
+  sensor_simulation:
+    build:
+      context: ./sensor_simulation  # Specify the build context to be the app directory
+      dockerfile: Dockerfile  # Specify the Dockerfile to use
+    container_name: sensor_simulation
+    depends_on:
+      - mqtt_broker
+    restart: unless-stopped
+    ports:
+      - 9999:9999  # Expose Flask app's port
+    volumes:
+      - ./sensor_simulation:/usr/src/sensor_simulation  # Mount the current directory as a volume in the container
+
   mqtt_broker:
     image: hivemq/hivemq4
     container_name: mqtt_broker
@@ -29,6 +57,7 @@ services:
     container_name: influxdb
     env_file:
       - ./influxdb/influxv2.env
+    restart: unless-stopped
     volumes:
       # Mount for influxdb data directory and configuration
       - influxdbv2:/var/lib/influxdb2:rw
@@ -69,3 +98,6 @@ services:
       restart: unless-stopped
       volumes:
         - grafana-data:/var/lib/grafana
+      environment:
+        GF_SECURITY_ALLOW_EMBEDDING: "true"
+        GF_AUTH_ANONYMOUS_ENABLED: "true"

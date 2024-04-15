@@ -62,7 +62,7 @@
           <ul>
             {% if current_user.is_authenticated %}
             <li>
-              <a href="#">
+              <a href="{{ url_for('dashboard') }}">
                 <i class="bx bxs-grid-alt"></i>
                 <span class="nav-item">Dashboard</span>
               </a>
