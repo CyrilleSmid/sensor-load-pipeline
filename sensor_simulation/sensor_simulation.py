@@ -10,7 +10,7 @@ import multiprocessing
 import time
 
 # Define constants
-TIME_FACTOR = 0.00001
+TIME_FACTOR = 0.0001
 SIMULATION_TIME = None  # Simulation time in seconds
 DATA_INTERVAL = 60*60  # Interval for sending data from each device in seconds
 
@@ -23,7 +23,7 @@ MQTT_TOPIC = 'sensors/electricity'  # Topic to publish data to
 MAX_RETRIES = 5
 RETRY_DELAY = 5  # seconds
 
-def device(env, device_id, client_id, last_timestamp, mqtt_client, data_source):
+def device(env, device_id, client_id, cur_time_index, mqtt_client, data_source):
     sensor_labels = data_source.columns[device_id].split('_')
 
     # sensor_label_key_value = f'floor:"{sensor_labels[0][-1]}", zone:"{sensor_labels[1][-1]}", sensor:"{sensor_labels[2]}"'
@@ -35,18 +35,15 @@ def device(env, device_id, client_id, last_timestamp, mqtt_client, data_source):
         "sensor":sensor_labels[2],
     }
     
-    cur_time_index = 0
-    if last_timestamp is not None: 
-        # TODO: recover current time index
-        pass 
-    while True:
+    while cur_time_index < data_source.shape[0]:
         line_protocol = fetch_device_data(device_id, sensor_label_key_value, data_source, cur_time_index)
         
         # log.info(f"Published: {line_protocol}")
         mqtt_client.publish(MQTT_TOPIC, line_protocol)
         
-        yield env.timeout(DATA_INTERVAL)
+        yield env.timeout(5 if cur_time_index < 2400 else DATA_INTERVAL)
         cur_time_index += 1
+    log.info(f"All data processed")
 
 
 def fetch_device_data(device_id, sensor_label_key_value, data_source, cur_time_index):
@@ -91,7 +88,13 @@ def simulation(env, user_id, last_timestamp):
     sensor_data = pd.read_csv(path, parse_dates=['Date']).set_index('Date')
     num_sensors = len(sensor_data.columns)
     
-    devices = [env.process(device(env, i, client_id, last_timestamp, mqtt_client, sensor_data)) for i in range(num_sensors)]
+    cur_time_index = 0
+    if last_timestamp != "None":
+        last_timestamp=pd.to_datetime(last_timestamp)
+        cur_time_index = max(sensor_data.index.get_loc(last_timestamp, method='nearest') - 12, 0)
+        log.info(f"Recovered current time index: {sensor_data.index[cur_time_index]}")
+    
+    devices = [env.process(device(env, i, client_id, cur_time_index, mqtt_client, sensor_data)) for i in range(num_sensors)]
     if SIMULATION_TIME is not None:
         yield env.timeout(SIMULATION_TIME)
 
