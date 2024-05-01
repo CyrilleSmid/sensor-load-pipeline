@@ -1,15 +1,9 @@
-version: '3.7'
-
 volumes:
   prometheus-data: {}
   grafana-data: {}
   influxdbv2: {}
 
 services:
-  # sensor_simulator:
-  #   build: ./sensor_simulator
-    # Add any necessary configuration
-
   flask_app:
     build:
       context: ./app  # Specify the build context to be the app directory
@@ -24,6 +18,13 @@ services:
       - ./app:/usr/src/app  # Mount the current directory as a volume in the container
     environment:
       - FLASK_APP=run.py  # Set the Flask app entry point
+    deploy:
+          resources:
+            reservations:
+              devices:
+                - driver: nvidia
+                  count: all 
+                  capabilities: [gpu]
       
   sensor_simulation:
     build:
