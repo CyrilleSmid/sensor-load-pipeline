@@ -1,17 +1,22 @@
-from flask import render_template, url_for, flash, redirect, request, session, abort
+from flask import render_template, url_for, flash, redirect, request, session, abort, jsonify
 from web_service import app, db, bcrypt
 from web_service.forms import RegistrationFormUser, LoginForm, UpdateAccountForm
 from flask_login import login_user, current_user, logout_user, login_required
 from web_service.models import User
 from datetime import datetime
-import docker
-import secrets
-import os
+from web_service.simulation_management import send_user_info_to_client_manager
+import dash_app.influx_query_manager as query_manager
+import logging as log
+log.basicConfig(level=log.INFO)
+
 
 @app.route('/')
 @app.route('/home')
 def index():
-    return render_template("index.html", title='Home')
+    if current_user.is_authenticated:
+        return redirect(url_for('building_dashboard'))
+    else:
+        return redirect(url_for('login'))
 
 @app.route('/about')
 def about():
@@ -33,7 +38,10 @@ def register_user():
     form = RegistrationFormUser()
     if form.validate_on_submit():
         user = save_user(form)
-        flash(f'User account created for {form.email}!', 'success')
+        
+        last_timestamp=query_manager.get_last_available_date(client_id=f'client-{user.id}')
+        send_user_info_to_client_manager(user.id, str(last_timestamp))
+        
         return redirect(url_for('login'))
     return render_template('register_base.html', title='Register User', form=form)
 
@@ -72,8 +80,25 @@ def account():
         form.email.data = current_user.email
     return render_template('account.html', title='Account', form=form)
 
-@app.route("/dashboard", methods=['GET'])
+@app.route("/building_dashboard", methods=['GET'])
 @login_required
-def dashboard():
-    return render_template('dashboard.html', title='Dashboard')
+def building_dashboard():
+    return render_template('building_dashboard.html', title='Dashboard')
 
+@app.route("/monitoring_dashboard", methods=['GET'])
+@login_required
+def monitoring_dashboard():
+    return render_template('monitoring_dashboard.html', title='Dashboard')
+
+
+@app.route('/check_status', methods=['GET'])
+@login_required
+def check_status():
+    if 'model_train_status' not in session:
+        session['model_train_status'] = current_user.model_info.model_train_status
+    elif session['model_train_status'] != current_user.model_info.model_train_status:
+        session['model_train_status'] = current_user.model_info.model_train_status
+        log.info(f'New status: {current_user.model_info.model_train_status}')
+        return jsonify({'status': current_user.model_info.model_train_status})
+    return jsonify({'status': 'unchanged'})
+    
