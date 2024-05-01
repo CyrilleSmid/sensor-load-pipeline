@@ -10,7 +10,7 @@ import multiprocessing
 import time
 
 # Define constants
-TIME_FACTOR = 0.0001
+TIME_FACTOR = 0.00015
 SIMULATION_TIME = None  # Simulation time in seconds
 DATA_INTERVAL = 60*60  # Interval for sending data from each device in seconds
 
@@ -41,7 +41,7 @@ def device(env, device_id, client_id, cur_time_index, mqtt_client, data_source):
         # log.info(f"Published: {line_protocol}")
         mqtt_client.publish(MQTT_TOPIC, line_protocol)
         
-        yield env.timeout(5 if cur_time_index < 2400 else DATA_INTERVAL)
+        yield env.timeout(1 if cur_time_index < 24*95 else DATA_INTERVAL)
         cur_time_index += 1
     log.info(f"All data processed")
 
