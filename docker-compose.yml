@@ -1,0 +1,104 @@
+volumes:
+  prometheus-data: {}
+  grafana-data: {}
+  influxdbv2: {}
+
+services:
+  flask_app:
+    build:
+      context: ./app  # Specify the build context to be the app directory
+      dockerfile: Dockerfile  # Specify the Dockerfile to use
+    container_name: flask_app
+    depends_on:
+      - sensor_simulation
+    ports:
+      - 5000:5000  # Expose Flask app's port
+    restart: unless-stopped
+    volumes:
+      - ./app:/usr/src/app  # Mount the current directory as a volume in the container
+    environment:
+      - FLASK_APP=run.py  # Set the Flask app entry point
+    deploy:
+          resources:
+            reservations:
+              devices:
+                - driver: nvidia
+                  count: all 
+                  capabilities: [gpu]
+      
+  sensor_simulation:
+    build:
+      context: ./sensor_simulation  # Specify the build context to be the app directory
+      dockerfile: Dockerfile  # Specify the Dockerfile to use
+    container_name: sensor_simulation
+    depends_on:
+      - mqtt_broker
+    restart: unless-stopped
+    ports:
+      - 9999:9999  # Expose Flask app's port
+    volumes:
+      - ./sensor_simulation:/usr/src/sensor_simulation  # Mount the current directory as a volume in the container
+
+  mqtt_broker:
+    image: hivemq/hivemq4
+    container_name: mqtt_broker
+    ports:
+      - 1883:1883
+      - 8000:8000
+      - 8080:8080
+      - 9399:9399
+    restart: unless-stopped
+    volumes:
+      - ./mqtt_broker/config/config.xml:/opt/hivemq/conf/config.xml
+      - ./mqtt_broker/extensions/hivemq-mqtt-message-log-extension:/opt/hivemq/extensions/hivemq-mqtt-message-log-extension
+      - ./mqtt_broker/extensions/hivemq-prometheus-extension:/opt/hivemq/extensions/hivemq-prometheus-extension
+  
+  influxdb:
+    image: influxdb:2.6-alpine
+    container_name: influxdb
+    env_file:
+      - ./influxdb/influxv2.env
+    restart: unless-stopped
+    volumes:
+      # Mount for influxdb data directory and configuration
+      - influxdbv2:/var/lib/influxdb2:rw
+    ports:
+      - "8086:8086"
+
+  telegraf:
+    image: telegraf:1.25-alpine
+    container_name: telegraf
+    depends_on:
+      - influxdb
+      - mqtt_broker
+    restart: unless-stopped
+    volumes:
+      # Mount for telegraf config
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    env_file:
+      - ./influxdb/influxv2.env
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    ports:
+      - 9090:9090  # Prometheus UI port
+    restart: unless-stopped
+    volumes:
+      - ./mqtt_broker/extensions/hivemq-prometheus-extension/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--web.enable-lifecycle'
+      - '--config.file=/etc/prometheus/prometheus.yml'
+
+  grafana:
+      image: grafana/grafana:latest
+      container_name: grafana
+      ports:
+        - '3000:3000'
+      restart: unless-stopped
+      volumes:
+        - grafana-data:/var/lib/grafana
+      environment:
+        GF_SECURITY_ALLOW_EMBEDDING: "true"
+        GF_AUTH_ANONYMOUS_ENABLED: "true"
