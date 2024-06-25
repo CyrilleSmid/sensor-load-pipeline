@@ -9,7 +9,16 @@ from sklearn.preprocessing import MinMaxScaler
 import joblib
 import tensorflow as tf
 physical_device = tf.config.experimental.list_physical_devices('GPU')
-tf.config.experimental.set_memory_growth(physical_device[0], True)
+if len(physical_device) > 0:
+    tf.config.experimental.set_memory_growth(physical_device[0], True)
+else:
+    log.warning(f"No compatible GPU found. Running on CPU.")
+    
+''' 
+Damn, I didn't want anyone to look at this :/
+Like this stuff works, but I kinda clumped it all together, and
+I am too lazy to refactor it. But thanks for checking it out anyway :3
+'''
 
 from keras.models import Model
 from keras.layers import Dense, LSTM, Dropout, Flatten, Input, concatenate
@@ -175,7 +184,7 @@ def regular_model_update():
                     user_scaler_path = os.path.join(user_dir, "c")
                     user_pred_path = os.path.join(user_dir, "user_predictions.csv")
                     if user.model_info.model_last_train_time is None:
-                        if  cur_user_daily_data.shape[0] > 100:
+                        if  cur_user_daily_data.shape[0] >= 100:
                             model = compile_lstm()
                             user.model_info.model_train_status = f"Training initial model. Might take more than 5 minutes."
                             db.session.commit()
