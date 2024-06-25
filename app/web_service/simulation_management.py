@@ -4,7 +4,7 @@ import time
 import threading
 import logging as log
 
-HOST = 'sensor_simulation' # 'sensor_simulation'
+HOST = 'sensor_simulation'
 PORT = 9999  
 
 # Connection retry mechanism

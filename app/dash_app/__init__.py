@@ -98,7 +98,7 @@ def get_prediction_stats(actual, prediction):
 def update_total_load(n, query_period):
     user_id = current_user.id
     df = query_manager.get_last_by_period(period=query_period, client_id=f'client-{user_id}')
-    if df.empty == False:
+    if df.empty == False and df.shape[0] > 1:
         df = query_manager.clean_up_influx_df(df)
         df = query_manager.split_columns_multiindex(df)
         total_load_df = pd.DataFrame(df.sum(axis=1), columns=['Total Load'])
@@ -156,7 +156,8 @@ def create_dash_application(flask_app):
                     {'label': 'Half a year', 'value': '6mo'},
                     {'label': 'One year', 'value': '12mo'},
                 ],
-                value='2m'
+                value='2mo',
+                clearable=False
             ),
             html.H4('Daily Total Load Prediction'),
             html.Div(id='total_load_pred-text'),

@@ -4,7 +4,7 @@ import warnings
 from influxdb_client.client.warnings import MissingPivotFunction
 warnings.simplefilter("ignore", MissingPivotFunction)
 
-INFLUX_HOST = "http://influxdb:8086"
+INFLUX_HOST = "http://influxdb:8086" 
 INFLUX_TOKEN = "_dLOVD41oGB3UPNoCuXcqwb7MZonkMIi48eNL6NKW6aVRX0wUqJxo4O75HRdxmH4xOF-L9MJpybbyNpA9jraZw=="
 INFLUX_ORG = "sensor_load_pipeline"
 INFLUX_BUCKET = "sensors_bucket"
@@ -39,7 +39,7 @@ def get_last_available_date(client_id='client-1'):
     else: 
         return None
 
-def get_period_since(since, period='1mo', client_id='client-1'):
+def get_period_since(since, period='2mo', client_id='client-1'):
     query = f'''import "date"
     from(bucket: "sensors_bucket")
         |> range(start: date.add(d: -{period}, to: time(v:{since})), stop: time(v:{since}))
